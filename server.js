@@ -88,7 +88,7 @@ app.post('/response', async function (req, res) {
         }
       );
     }
-    res.send({ 'status':pd.status,'pd': pd, redirectStatus:recharging.status,redirectURL:"https://www.shoptraders.in/api/response-recharge/" + token });
+    res.send({ 'status':pd.status,'pd': pd, redirectStatus:recharging.status,redirectURL:"https://www.bingoclub.in/api/response-recharge/" + token });
   } else {
     res.send({ 'status': "Error occured" });
   }
