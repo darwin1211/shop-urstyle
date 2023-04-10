@@ -40,23 +40,25 @@ app.post('/recharge', async (req, res) => {
     comp.user = req.body.name;
     comp.money = req.body.money;
     comp.email = req.body.email;
+    //from lottery => recharge._id
+    //from shop => address
     comp.recharge = req.body.address;
     comp.status = req.body.status;
     comp.productinfo = req.body.productinfo ? req.body.productinfo : "Shopping carts";
-    const recharging = await new Recharging(comp).save();
-
-    var hashString = process.env.PAYU_KEY // Merchant Key 
+    const recharging = await new Recharging(comp).save();   
+    var hashString = process.env.PAYU_KEY 
       + '|' + recharging._id
       + '|' + recharging.money + '|' + recharging.productinfo + '|'
-      + recharging.user + '|' + recharging.email + '|'
-      + '||||||||||'
-      + process.env.PAYU_SALT // Your salt value
+      + recharging.user + '|' + recharging.email
+      + '|||||||||||'
+      + process.env.PAYU_SALT; // Your salt value
     var cryp = crypto.createHash('sha512');
-
+   
     cryp.update(hashString);
     var hash = cryp.digest('hex');
-
-    res.send({ 'hash': hash, "recharging": recharging, key: process.env.PAYU_KEY, url: "https://payout.co.in/response"});
+      // console.log(hash);
+      // console.log(JSON.stringify(hash));
+    res.send({ 'hash': hash, "recharging": recharging, key: process.env.PAYU_KEY, url: process.env.APP_URL + "/response" });
   }
 
 });
@@ -64,13 +66,13 @@ app.post('/recharge', async (req, res) => {
 app.post('/response', async function (req, res) {
   var pd = req.body;
   //Generate new Hash 
-  var hashString = process.env.PAYU_SALT + '|' + pd.status + '||||||||||' + '|' + pd.email + '|' + pd.firstname + '|' + pd.productinfo + '|' + pd.amount + '|' + pd.txnid + '|' + process.env.PAYU_KEY;
+  var hashString = process.env.PAYU_SALT + '|' + pd.status + '|||||||||||' + pd.email + '|' + pd.firstname + '|' + pd.productinfo + '|' + pd.amount + '|' + pd.txnid + '|' + process.env.PAYU_KEY;
   var cryp = crypto.createHash('sha512');
   cryp.update(hashString);
   var calchash = cryp.digest('hex');
   // Verify the new hash with the hash value in response
-  if (calchash == pd.hash) {
-    const recharging = await Recharging.findOne(pd.txnid).catch(err => {
+  if (calchash == pd.hash && pd.status== 'success' && pd.unmappedstatus=='captured' && pd.error=='E000') {
+    const recharging = await Recharging.findById(pd.txnid).catch(err => {
       console.log('recharging failed');
       return res.send({ 'status': "Error occured" });
     });
@@ -80,15 +82,17 @@ app.post('/response', async function (req, res) {
         {
           recharge: recharging.recharge,
           money: pd.amount,
-          order: pd.payuMoneyId
+          order: pd.mihpayid
         },
         process.env.AUTH_SECRET,
         {
           expiresIn: "1h",
         }
       );
+      return res.redirect("https://www.terion.club/api/response-recharge/" + token);
     }
-    res.send({ 'status':pd.status,'pd': pd, redirectStatus:recharging.status,redirectURL:"https://bingoclub.in/api/response-recharge/" + token });
+    
+    res.redirect("/");
   } else {
     res.send({ 'status': "Error occured" });
   }
@@ -103,5 +107,3 @@ app.listen(port, error => {
   if (error) throw error;
   console.log('Server running on port' + port);
 })
-
-
